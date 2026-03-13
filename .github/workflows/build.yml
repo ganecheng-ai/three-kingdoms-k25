@@ -66,9 +66,10 @@ jobs:
     - name: Package artifacts
       run: |
         mkdir -p release
-        cp -r src/assets release/ 2>/dev/null || true
-        cp README.md release/ 2>/dev/null || true
-        cp LICENSE release/ 2>/dev/null || true
+        cp -r src/assets release/ || true
+        cp README.md release/ || true
+        cp LICENSE release/ || true
+      shell: bash
 
     - name: Create Windows package
       if: matrix.target == 'Windows'
@@ -77,6 +78,7 @@ jobs:
         cp dist/ThreeKingdoms.exe release/
         cd release
         7z a ../three-kingdoms-windows-x64.zip .
+      shell: bash
 
     - name: Create Linux package
       if: matrix.target == 'Linux'
@@ -86,6 +88,7 @@ jobs:
         chmod +x release/ThreeKingdoms
         cd release
         tar -czf ../three-kingdoms-linux-x64.tar.gz .
+      shell: bash
 
     - name: Create macOS package
       if: matrix.target == 'macOS'
@@ -95,6 +98,7 @@ jobs:
         chmod +x release/ThreeKingdoms
         cd release
         tar -czf ../three-kingdoms-macos-x64.tar.gz .
+      shell: bash
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -116,11 +120,12 @@ jobs:
         mkdir -p checksums
         for dir in three-kingdoms-*; do
           if [ -d "$dir" ]; then
-            cp "$dir"/* checksums/ 2>/dev/null || true
+            cp "$dir"/* checksums/ || true
           fi
         done
         cd checksums
         sha256sum * > ../checksums.txt
+      shell: bash
 
     - name: Upload checksums
       uses: actions/upload-artifact@v4
