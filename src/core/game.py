@@ -17,6 +17,7 @@ from scenes.world_map import WorldMapScene
 from scenes.city import CityScene
 from scenes.battle import BattleScene
 from scenes.officer import OfficerScene
+from scenes.diplomacy import DiplomacyScene
 from core.officer import officer_manager
 from core.city import city_manager
 from core.faction import faction_manager
@@ -115,6 +116,7 @@ class Game:
         self.scenes['city'] = CityScene(self)
         self.scenes['battle'] = BattleScene(self)
         self.scenes['officer'] = OfficerScene(self)
+        self.scenes['diplomacy'] = DiplomacyScene(self)
 
         # 设置初始场景
         self.change_scene('menu')

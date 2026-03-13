@@ -63,14 +63,14 @@ class City:
 
     def get_monthly_income(self) -> tuple:
         """计算月度收入 (金钱, 粮草)"""
-        gold_income = int(self.population * 0.1 * (self.commerce / 100))
-        food_income = int(self.population * 0.5 * (self.agriculture / 100))
+        gold_income = int(self.population * 0.08 * (self.commerce / 100))  # 降低收入系数
+        food_income = int(self.population * 0.4 * (self.agriculture / 100))
         return gold_income, food_income
 
     def get_monthly_consumption(self) -> tuple:
         """计算月度消耗 (金钱, 粮草)"""
-        gold_cost = int(self.troops * 0.5 + self.population * 0.02)
-        food_cost = int(self.troops * 2)
+        gold_cost = int(self.troops * 0.6 + self.population * 0.025)  # 增加兵力消耗
+        food_cost = int(self.troops * 2.5)  # 增加粮草消耗
         return gold_cost, food_cost
 
     def develop_agriculture(self, officer_int: int, officer_pol: int) -> int:
@@ -78,19 +78,19 @@ class City:
         if self.agriculture >= 100:
             return 0
 
-        # 成功率基于智力和政治
-        success_rate = min(0.9, (officer_int + officer_pol) / 200)
+        # 成功率基于智力和政治（稍微降低成功率）
+        success_rate = min(0.85, (officer_int + officer_pol) / 220)
         if random.random() > success_rate:
             return 0
 
-        # 增加量
-        increase = random.randint(3, 8)
+        # 增加量（稍微降低）
+        increase = random.randint(2, 6)
         old_val = self.agriculture
         self.agriculture = min(100, self.agriculture + increase)
         actual_increase = self.agriculture - old_val
 
-        # 消耗金钱
-        cost = 500
+        # 消耗金钱（增加消耗）
+        cost = 800
         self.resources.gold = max(0, self.resources.gold - cost)
 
         logger.info(f"{self.name} 农业开发: {actual_increase}, 当前: {self.agriculture}")
@@ -101,16 +101,16 @@ class City:
         if self.commerce >= 100:
             return 0
 
-        success_rate = min(0.9, (officer_int + officer_pol) / 200)
+        success_rate = min(0.85, (officer_int + officer_pol) / 220)
         if random.random() > success_rate:
             return 0
 
-        increase = random.randint(3, 8)
+        increase = random.randint(2, 6)
         old_val = self.commerce
         self.commerce = min(100, self.commerce + increase)
         actual_increase = self.commerce - old_val
 
-        cost = 500
+        cost = 800
         self.resources.gold = max(0, self.resources.gold - cost)
 
         logger.info(f"{self.name} 商业发展: {actual_increase}, 当前: {self.commerce}")
@@ -121,16 +121,16 @@ class City:
         if self.defense >= 100:
             return 0
 
-        success_rate = min(0.9, (officer_int + officer_pol) / 200)
+        success_rate = min(0.85, (officer_int + officer_pol) / 220)
         if random.random() > success_rate:
             return 0
 
-        increase = random.randint(2, 6)
+        increase = random.randint(1, 4)  # 城防增长较慢
         old_val = self.defense
         self.defense = min(100, self.defense + increase)
         actual_increase = self.defense - old_val
 
-        cost = 800
+        cost = 1000  # 城防建设更昂贵
         self.resources.gold = max(0, self.resources.gold - cost)
 
         logger.info(f"{self.name} 城防加强: {actual_increase}, 当前: {self.defense}")
@@ -139,15 +139,15 @@ class City:
     def draft_troops(self, amount: int, officer_chr: int) -> int:
         """征兵"""
         # 基于魅力影响征兵效率
-        max_troops = int(self.population * 0.1 * (0.5 + officer_chr / 200))
+        max_troops = int(self.population * 0.08 * (0.5 + officer_chr / 200))  # 稍微降低征兵上限
         actual_amount = min(amount, max_troops)
 
         if actual_amount <= 0:
             return 0
 
-        # 消耗金钱和粮草
-        gold_cost = actual_amount * 10
-        food_cost = actual_amount * 5
+        # 消耗金钱和粮草（增加成本）
+        gold_cost = actual_amount * 15  # 从10增加到15
+        food_cost = actual_amount * 8   # 从5增加到8
 
         if self.resources.gold < gold_cost or self.resources.food < food_cost:
             return 0

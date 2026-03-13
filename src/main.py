@@ -5,8 +5,14 @@
 import sys
 import os
 
-# 添加src到路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 检测是否在 PyInstaller 打包环境中运行
+if getattr(sys, 'frozen', False):
+    # 如果是打包后的环境，使用可执行文件所在目录
+    bundle_dir = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
+    sys.path.insert(0, bundle_dir)
+else:
+    # 开发环境：添加 src 到路径
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.game import Game
 from utils.logger import get_logger

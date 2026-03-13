@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -41,25 +44,58 @@ jobs:
 
     - name: Build executable (Windows)
       if: matrix.target == 'Windows'
+      shell: bash
       run: |
         cd src
-        pyinstaller --onefile --windowed --name "ThreeKingdoms" main.py
+        pyinstaller --onefile --windowed --name "ThreeKingdoms" \
+          --paths "$(pwd)" \
+          --hidden-import core --hidden-import core.game --hidden-import core.city \
+          --hidden-import core.officer --hidden-import core.faction --hidden-import core.save_manager \
+          --hidden-import ui --hidden-import ui.base --hidden-import ui.button --hidden-import ui.panel \
+          --hidden-import ui.text --hidden-import ui.dialog \
+          --hidden-import scenes --hidden-import scenes.base --hidden-import scenes.menu \
+          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle --hidden-import scenes.officer \
+          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger --hidden-import utils.asset_manager \
+          --hidden-import config \
+          main.py
         mkdir -p ../dist
         cp dist/ThreeKingdoms.exe ../dist/
 
     - name: Build executable (Linux)
       if: matrix.target == 'Linux'
+      shell: bash
       run: |
         cd src
-        pyinstaller --onefile --name "ThreeKingdoms" main.py
+        pyinstaller --onefile --name "ThreeKingdoms" \
+          --paths "$(pwd)" \
+          --hidden-import core --hidden-import core.game --hidden-import core.city \
+          --hidden-import core.officer --hidden-import core.faction --hidden-import core.save_manager \
+          --hidden-import ui --hidden-import ui.base --hidden-import ui.button --hidden-import ui.panel \
+          --hidden-import ui.text --hidden-import ui.dialog \
+          --hidden-import scenes --hidden-import scenes.base --hidden-import scenes.menu \
+          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle --hidden-import scenes.officer \
+          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger --hidden-import utils.asset_manager \
+          --hidden-import config \
+          main.py
         mkdir -p ../dist
         cp dist/ThreeKingdoms ../dist/
 
     - name: Build executable (macOS)
       if: matrix.target == 'macOS'
+      shell: bash
       run: |
         cd src
-        pyinstaller --onefile --windowed --name "ThreeKingdoms" main.py
+        pyinstaller --onefile --windowed --name "ThreeKingdoms" \
+          --paths "$(pwd)" \
+          --hidden-import core --hidden-import core.game --hidden-import core.city \
+          --hidden-import core.officer --hidden-import core.faction --hidden-import core.save_manager \
+          --hidden-import ui --hidden-import ui.base --hidden-import ui.button --hidden-import ui.panel \
+          --hidden-import ui.text --hidden-import ui.dialog \
+          --hidden-import scenes --hidden-import scenes.base --hidden-import scenes.menu \
+          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle --hidden-import scenes.officer \
+          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger --hidden-import utils.asset_manager \
+          --hidden-import config \
+          main.py
         mkdir -p ../dist
         cp dist/ThreeKingdoms ../dist/
 

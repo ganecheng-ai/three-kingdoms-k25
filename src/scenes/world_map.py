@@ -209,6 +209,7 @@ class WorldMapScene(BaseScene):
     def _on_diplomacy(self):
         """外交"""
         logger.info("打开外交界面")
+        self.game.change_scene('diplomacy')
 
     def _on_personnel(self):
         """人事"""
