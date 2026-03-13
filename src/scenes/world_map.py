@@ -5,8 +5,10 @@
 import pygame
 from scenes.base import BaseScene
 from ui.base import Panel, Button, Label
-from utils.constants import COLORS, SCREEN_WIDTH, SCREEN_HEIGHT, TERRAIN_COLORS
+from utils.constants import COLORS, SCREEN_WIDTH, SCREEN_HEIGHT, TERRAIN_COLORS, FACTION_COLORS
 from utils.logger import get_logger
+from core.city import city_manager
+from core.faction import faction_manager
 
 logger = get_logger('world_map')
 
@@ -19,8 +21,8 @@ class WorldMapScene(BaseScene):
         self.name = 'world_map'
         self.map_offset_x = 0
         self.map_offset_y = 0
-        self.map_width = 2400
-        self.map_height = 1800
+        self.map_width = 1400
+        self.map_height = 1000
 
     def _init_scene(self):
         """初始化大地图"""
@@ -34,21 +36,25 @@ class WorldMapScene(BaseScene):
         self.ui_root.add_child(self.top_bar)
 
         # 势力名称
-        self.faction_name = Label(20, 15, "刘备军", self.game.get_font('large'), COLORS['gold'])
-        self.top_bar.add_child(self.faction_name)
+        self.faction_name_label = Label(20, 15, "势力名称", self.game.get_font('large'), COLORS['gold'])
+        self.top_bar.add_child(self.faction_name_label)
 
         # 日期显示
         self.date_label = Label(300, 15, "公元 184年 1月", self.game.get_font('large'), COLORS['white'])
         self.top_bar.add_child(self.date_label)
 
+        # 回合数
+        self.turn_label = Label(550, 15, "第 1 回合", self.game.get_font('default'), COLORS['light_gray'])
+        self.top_bar.add_child(self.turn_label)
+
         # 资源显示
-        self.gold_label = Label(600, 15, "金钱: 10000", self.game.get_font('default'), COLORS['gold'])
+        self.gold_label = Label(700, 15, "金钱: 0", self.game.get_font('default'), COLORS['gold'])
         self.top_bar.add_child(self.gold_label)
 
-        self.food_label = Label(750, 15, "粮草: 50000", self.game.get_font('default'), COLORS['light_gray'])
+        self.food_label = Label(850, 15, "粮草: 0", self.game.get_font('default'), COLORS['light_gray'])
         self.top_bar.add_child(self.food_label)
 
-        self.troops_label = Label(900, 15, "兵力: 50000", self.game.get_font('default'), COLORS['red'])
+        self.troops_label = Label(1000, 15, "兵力: 0", self.game.get_font('default'), COLORS['red'])
         self.top_bar.add_child(self.troops_label)
 
         # 底部菜单栏
@@ -128,18 +134,37 @@ class WorldMapScene(BaseScene):
         # 地图视口
         self.map_viewport = pygame.Rect(0, 60, SCREEN_WIDTH, SCREEN_HEIGHT - 140)
 
-        # 生成示例城池数据
-        self.cities = [
-            {'id': 1, 'name': '涿县', 'x': 400, 'y': 300, 'faction': 2},
-            {'id': 2, 'name': '洛阳', 'x': 600, 'y': 500, 'faction': 1},
-            {'id': 3, 'name': '建业', 'x': 1200, 'y': 800, 'faction': 3},
-            {'id': 4, 'name': '成都', 'x': 400, 'y': 900, 'faction': 2},
-            {'id': 5, 'name': '许昌', 'x': 800, 'y': 500, 'faction': 1},
-            {'id': 6, 'name': '长沙', 'x': 1000, 'y': 1000, 'faction': 3},
-        ]
-
-        # 生成示例地形
+        # 生成地形
         self._generate_terrain()
+
+        # 更新显示
+        self._update_display()
+
+    def on_enter(self, *args, **kwargs):
+        """进入场景"""
+        super().on_enter(*args, **kwargs)
+        self._update_display()
+
+    def _update_display(self):
+        """更新显示信息"""
+        # 更新势力名称
+        player_faction = self.game.get_player_faction()
+        if player_faction:
+            self.faction_name_label.set_text(f"{player_faction.name}军")
+            self.faction_name_label.color = player_faction.color
+
+        # 更新日期
+        self.date_label.set_text(self.game.get_formatted_date())
+
+        # 更新回合
+        self.turn_label.set_text(f"第 {self.game.current_turn} 回合")
+
+        # 更新资源
+        if player_faction:
+            player_faction.update_resources(self.game.city_manager.cities)
+            self.gold_label.set_text(f"金钱: {player_faction.total_gold}")
+            self.food_label.set_text(f"粮草: {player_faction.total_food}")
+            self.troops_label.set_text(f"兵力: {player_faction.total_troops}")
 
     def _generate_terrain(self):
         """生成地形数据"""
@@ -168,7 +193,14 @@ class WorldMapScene(BaseScene):
     def _on_internal(self):
         """内政"""
         logger.info("打开内政界面")
-        self.game.change_scene('city')
+        # 如果有选中的城池，直接进入该城
+        if self.game.selected_city:
+            self.game.change_scene('city', self.game.selected_city)
+        else:
+            # 获取玩家第一个城池
+            player_cities = self.game.get_player_cities()
+            if player_cities:
+                self.game.change_scene('city', player_cities[0])
 
     def _on_military(self):
         """军事"""
@@ -193,6 +225,8 @@ class WorldMapScene(BaseScene):
     def _on_end_turn(self):
         """结束回合"""
         logger.info("结束回合")
+        self.game.next_turn()
+        self._update_display()
 
     def handle_event(self, event):
         """处理事件"""
@@ -218,15 +252,16 @@ class WorldMapScene(BaseScene):
 
     def _check_city_click(self, mouse_x, mouse_y):
         """检查是否点击了城池"""
-        for city in self.cities:
-            city_screen_x = city['x'] + self.map_offset_x
-            city_screen_y = city['y'] + self.map_offset_y + self.map_viewport.y
+        for city in city_manager.cities.values():
+            city_screen_x = city.x + self.map_offset_x
+            city_screen_y = city.y + self.map_offset_y + self.map_viewport.y
 
             # 检查点击范围（城池半径约20像素）
             dx = mouse_x - city_screen_x
             dy = mouse_y - city_screen_y
             if dx * dx + dy * dy <= 400:  # 20^2 = 400
-                logger.info(f"点击城池: {city['name']}")
+                logger.info(f"点击城池: {city.name}")
+                self.game.select_city(city.id)
                 self.game.change_scene('city', city)
                 break
 
@@ -268,23 +303,34 @@ class WorldMapScene(BaseScene):
                             pygame.draw.rect(screen, color, (x, y, tile_size, tile_size))
 
         # 渲染城池
-        from utils.constants import FACTION_COLORS
-        for city in self.cities:
-            x = city['x'] + self.map_offset_x
-            y = city['y'] + self.map_offset_y + self.map_viewport.y
+        for city in city_manager.cities.values():
+            x = city.x + self.map_offset_x
+            y = city.y + self.map_offset_y + self.map_viewport.y
 
             # 城池圆圈
-            color = FACTION_COLORS.get(city['faction'], (128, 128, 128))
+            color = FACTION_COLORS.get(city.faction_id, (128, 128, 128))
+
+            # 如果选中则高亮
+            if self.game.selected_city and self.game.selected_city.id == city.id:
+                pygame.draw.circle(screen, COLORS['yellow'], (int(x), int(y)), 20)
+
             pygame.draw.circle(screen, color, (int(x), int(y)), 15)
             pygame.draw.circle(screen, COLORS['black'], (int(x), int(y)), 15, 2)
 
             # 城池名称
-            name_surface = self.game.get_font('small').render(city['name'], True, COLORS['white'])
+            name_surface = self.game.get_font('small').render(city.name, True, COLORS['white'])
             name_rect = name_surface.get_rect(center=(int(x), int(y) + 25))
 
             # 名称背景
             bg_rect = name_rect.inflate(4, 2)
             pygame.draw.rect(screen, COLORS['black'], bg_rect)
             screen.blit(name_surface, name_rect)
+
+            # 显示兵力
+            if city.troops > 0:
+                troop_text = f"{city.troops // 1000}k"
+                troop_surface = self.game.get_font('small').render(troop_text, True, COLORS['white'])
+                troop_rect = troop_surface.get_rect(center=(int(x), int(y)))
+                screen.blit(troop_surface, troop_rect)
 
         screen.set_clip(clip_rect)

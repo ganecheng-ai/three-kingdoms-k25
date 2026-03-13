@@ -113,13 +113,16 @@ class MenuScene(BaseScene):
     def _on_new_game(self):
         """新游戏"""
         logger.info("开始新游戏")
-        self.game.change_scene('world_map')
+        self.game.new_game(player_faction_id=2)  # 默认蜀国
 
     def _on_load_game(self):
         """载入游戏"""
         logger.info("载入游戏")
-        # TODO: 实现存档列表
-        pass
+        # 尝试加载自动存档
+        if self.game.load_game(0):
+            self.game.change_scene('world_map')
+        else:
+            logger.info("没有可用的存档")
 
     def _on_settings(self):
         """游戏设置"""

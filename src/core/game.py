@@ -16,6 +16,10 @@ from scenes.menu import MenuScene
 from scenes.world_map import WorldMapScene
 from scenes.city import CityScene
 from scenes.battle import BattleScene
+from core.officer import officer_manager
+from core.city import city_manager
+from core.faction import faction_manager
+from core.save_manager import save_manager
 
 logger = get_logger('game')
 
@@ -46,6 +50,20 @@ class Game:
         self.scenes = {}
         self.current_scene = None
         self._init_scenes()
+
+        # 游戏数据管理器
+        self.officer_manager = officer_manager
+        self.city_manager = city_manager
+        self.faction_manager = faction_manager
+        self.save_manager = save_manager
+
+        # 游戏状态
+        self.current_turn = 1
+        self.current_date = (184, 1)  # (年份, 月份)
+        self.selected_city = None
+
+        # 初始化游戏数据
+        self._init_game_data()
 
         logger.info("游戏初始化完成")
 
@@ -167,7 +185,162 @@ class Game:
             fps_text = self.get_font('small').render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 0))
             self.screen.blit(fps_text, (10, 10))
 
-    def quit(self):
+    def _init_game_data(self):
+        """初始化游戏数据"""
+        logger.info("初始化游戏数据...")
+
+        # 关联武将和城池
+        self._link_officers_to_cities()
+
+        # 关联城池和势力
+        self._link_cities_to_factions()
+
+        # 更新势力资源
+        self.faction_manager.update_all_resources(self.city_manager.cities)
+
+        logger.info("游戏数据初始化完成")
+
+    def _link_officers_to_cities(self):
+        """关联武将与城池"""
+        # 为每个武将分配城池
+        for officer in self.officer_manager.officers.values():
+            if officer.faction_id > 0:
+                # 获取势力下的城池
+                faction_cities = self.city_manager.get_cities_by_faction(officer.faction_id)
+                if faction_cities:
+                    # 将武将放入势力的第一个城池
+                    city = faction_cities[0]
+                    officer.city_id = city.id
+                    city.add_officer(officer.id)
+
+    def _link_cities_to_factions(self):
+        """关联城池与势力"""
+        for city in self.city_manager.cities.values():
+            if city.faction_id > 0:
+                faction = self.faction_manager.get_faction(city.faction_id)
+                if faction:
+                    faction.add_city(city.id)
+
+    def get_formatted_date(self) -> str:
+        """获取格式化日期"""
+        year, month = self.current_date
+        return f"公元 {year}年 {month}月"
+
+    def next_turn(self):
+        """进入下一回合"""
+        self.current_turn += 1
+
+        # 更新日期
+        year, month = self.current_date
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+        self.current_date = (year, month)
+
+        # 处理回合更新
+        self._process_turn_update()
+
+        logger.info(f"进入第 {self.current_turn} 回合: {self.get_formatted_date()}")
+
+    def _process_turn_update(self):
+        """处理回合更新"""
+        # 更新所有城池
+        self.city_manager.process_turn()
+
+        # 更新势力资源
+        self.faction_manager.update_all_resources(self.city_manager.cities)
+
+        # 自动存档
+        if config.get('game.auto_save'):
+            self.auto_save()
+
+    def select_city(self, city_id: int):
+        """选择城池"""
+        self.selected_city = self.city_manager.get_city(city_id)
+        return self.selected_city
+
+    def new_game(self, player_faction_id: int = 2):
+        """开始新游戏"""
+        logger.info(f"开始新游戏，玩家势力: {player_faction_id}")
+
+        self.current_turn = 1
+        self.current_date = (184, 1)
+        self.selected_city = None
+
+        # 设置玩家势力
+        self.faction_manager.set_player_faction(player_faction_id)
+
+        # 重新初始化数据
+        self._init_game_data()
+
+        # 切换到大地图
+        self.change_scene('world_map')
+
+    def save_game(self, slot_id: int, name: str = "") -> bool:
+        """保存游戏"""
+        game_data = {
+            'turn': self.current_turn,
+            'date': self.current_date,
+            'player_faction_id': self.faction_manager.player_faction_id,
+            'player_faction_name': self.faction_manager.get_player_faction().name if self.faction_manager.get_player_faction() else "",
+            'cities': {cid: city.to_dict() for cid, city in self.city_manager.cities.items()},
+            'officers': {oid: officer.to_dict() for oid, officer in self.officer_manager.officers.items()},
+            'factions': {fid: faction.to_dict() for fid, faction in self.faction_manager.factions.items()},
+        }
+        return self.save_manager.save_game(slot_id, game_data, name)
+
+    def load_game(self, slot_id: int) -> bool:
+        """加载游戏"""
+        game_data = self.save_manager.load_game(slot_id)
+        if not game_data:
+            return False
+
+        try:
+            # 恢复游戏状态
+            self.current_turn = game_data.get('turn', 1)
+            self.current_date = tuple(game_data.get('date', [184, 1]))
+
+            # 恢复势力数据
+            self.faction_manager.factions.clear()
+            for fid, fdata in game_data['factions'].items():
+                from core.faction import Faction
+                self.faction_manager.factions[int(fid)] = Faction.from_dict(fdata)
+            self.faction_manager.player_faction_id = game_data.get('player_faction_id', 2)
+
+            # 恢复城池数据
+            self.city_manager.cities.clear()
+            for cid, cdata in game_data['cities'].items():
+                from core.city import City
+                self.city_manager.cities[int(cid)] = City.from_dict(cdata)
+
+            # 恢复武将数据
+            self.officer_manager.officers.clear()
+            for oid, odata in game_data['officers'].items():
+                from core.officer import Officer
+                self.officer_manager.officers[int(oid)] = Officer.from_dict(odata)
+
+            logger.info(f"游戏加载成功，当前回合: {self.current_turn}")
+            return True
+
+        except Exception as e:
+            logger.error(f"加载游戏数据失败: {e}")
+            return False
+
+    def auto_save(self) -> bool:
+        """自动存档"""
+        return self.save_game(0, "自动存档")
+
+    def get_player_faction(self):
+        """获取玩家势力"""
+        return self.faction_manager.get_player_faction()
+
+    def get_player_cities(self):
+        """获取玩家城池"""
+        faction = self.get_player_faction()
+        if faction:
+            return [self.city_manager.get_city(cid) for cid in faction.city_ids]
+        return []
         """退出游戏"""
         logger.info("游戏退出中...")
 
