@@ -1,0 +1,186 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ['3.10']
+        include:
+          - os: windows-latest
+            target: Windows
+            artifact_name: three-kingdoms-windows
+          - os: ubuntu-latest
+            target: Linux
+            artifact_name: three-kingdoms-linux
+          - os: macos-latest
+            target: macOS
+            artifact_name: three-kingdoms-macos
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable (Windows)
+      if: matrix.target == 'Windows'
+      run: |
+        cd src
+        pyinstaller --onefile --windowed --name "ThreeKingdoms" main.py
+        mkdir -p ../dist
+        cp dist/ThreeKingdoms.exe ../dist/
+
+    - name: Build executable (Linux)
+      if: matrix.target == 'Linux'
+      run: |
+        cd src
+        pyinstaller --onefile --name "ThreeKingdoms" main.py
+        mkdir -p ../dist
+        cp dist/ThreeKingdoms ../dist/
+
+    - name: Build executable (macOS)
+      if: matrix.target == 'macOS'
+      run: |
+        cd src
+        pyinstaller --onefile --windowed --name "ThreeKingdoms" main.py
+        mkdir -p ../dist
+        cp dist/ThreeKingdoms ../dist/
+
+    - name: Package artifacts
+      run: |
+        mkdir -p release
+        cp -r src/assets release/ 2>/dev/null || true
+        cp README.md release/ 2>/dev/null || true
+        cp LICENSE release/ 2>/dev/null || true
+
+    - name: Create Windows package
+      if: matrix.target == 'Windows'
+      run: |
+        mkdir -p release
+        cp dist/ThreeKingdoms.exe release/
+        cd release
+        7z a ../three-kingdoms-windows-x64.zip .
+
+    - name: Create Linux package
+      if: matrix.target == 'Linux'
+      run: |
+        mkdir -p release
+        cp dist/ThreeKingdoms release/
+        chmod +x release/ThreeKingdoms
+        cd release
+        tar -czf ../three-kingdoms-linux-x64.tar.gz .
+
+    - name: Create macOS package
+      if: matrix.target == 'macOS'
+      run: |
+        mkdir -p release
+        cp dist/ThreeKingdoms release/
+        chmod +x release/ThreeKingdoms
+        cd release
+        tar -czf ../three-kingdoms-macos-x64.tar.gz .
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          three-kingdoms-*.zip
+          three-kingdoms-*.tar.gz
+
+  create-checksums:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Generate checksums
+      run: |
+        mkdir -p checksums
+        for dir in three-kingdoms-*; do
+          if [ -d "$dir" ]; then
+            cp "$dir"/* checksums/ 2>/dev/null || true
+          fi
+        done
+        cd checksums
+        sha256sum * > ../checksums.txt
+
+    - name: Upload checksums
+      uses: actions/upload-artifact@v4
+      with:
+        name: checksums
+        path: checksums.txt
+
+  release:
+    needs: [build, create-checksums]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Display structure
+      run: ls -R
+
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+        # 读取 CHANGELOG 或生成发布说明
+        if [ -f CHANGELOG.md ]; then
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "## 三国霸业 $TAG_NAME" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 版本更新内容" >> $GITHUB_OUTPUT
+          echo "- 游戏基础框架搭建完成" >> $GITHUB_OUTPUT
+          echo "- 实现主菜单、大地图、城池、战斗场景" >> $GITHUB_OUTPUT
+          echo "- 支持简体中文界面" >> $GITHUB_OUTPUT
+          echo "- 实现日志系统" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 下载说明" >> $GITHUB_OUTPUT
+          echo "- Windows: three-kingdoms-windows-x64.zip" >> $GITHUB_OUTPUT
+          echo "- Linux: three-kingdoms-linux-x64.tar.gz" >> $GITHUB_OUTPUT
+          echo "- macOS: three-kingdoms-macos-x64.tar.gz" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: 三国霸业 ${{ steps.release_notes.outputs.tag_name }}
+        body: ${{ steps.release_notes.outputs.body }}
+        files: |
+          three-kingdoms-*/*.zip
+          three-kingdoms-*/*.tar.gz
+          checksums.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
