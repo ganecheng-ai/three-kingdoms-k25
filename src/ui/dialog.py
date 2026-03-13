@@ -314,3 +314,166 @@ class DialogManager:
         # 渲染toast
         for toast in self.toasts:
             toast.render(screen)
+
+
+# 全局对话框管理器实例（由Game类初始化时设置）
+_dialog_manager = None
+
+
+def set_dialog_manager(manager):
+    """设置全局对话框管理器"""
+    global _dialog_manager
+    _dialog_manager = manager
+
+
+def show_message(parent, message, font, on_confirm=None, title="提示"):
+    """
+    显示消息对话框（简化版，兼容旧代码）
+    在父组件上显示一个消息提示
+    """
+    global _dialog_manager
+
+    # 创建临时消息面板
+    msg_panel = Panel(
+        (SCREEN_WIDTH - 350) // 2,
+        (SCREEN_HEIGHT - 150) // 2,
+        350, 150,
+        COLORS['panel_bg'],
+        COLORS['border'],
+        3
+    )
+
+    # 标题
+    title_label = Label(20, 15, title, font, COLORS['gold'])
+    msg_panel.add_child(title_label)
+
+    # 消息内容（分行）
+    words = message
+    lines = []
+    current_line = ""
+
+    for char in words:
+        test_line = current_line + char
+        if font.size(test_line)[0] > 310:
+            lines.append(current_line)
+            current_line = char
+        else:
+            current_line = test_line
+
+    if current_line:
+        lines.append(current_line)
+
+    lines = lines[:3]  # 最多3行
+
+    y_offset = 50
+    for line in lines:
+        line_label = Label(20, y_offset, line, font, COLORS['text'])
+        msg_panel.add_child(line_label)
+        y_offset += 25
+
+    # 确定按钮
+    def on_ok():
+        msg_panel.visible = False
+        msg_panel.enabled = False
+        if on_confirm:
+            on_confirm()
+
+    btn_ok = Button(
+        125, 100, 100, 35,
+        "确定", font,
+        COLORS['primary'], COLORS['highlight'], COLORS['white'],
+        callback=on_ok
+    )
+    msg_panel.add_child(btn_ok)
+
+    # 添加到父组件
+    parent.add_child(msg_panel)
+    msg_panel.visible = True
+
+    return msg_panel
+
+
+def show_confirm(parent, message, font, on_confirm=None, on_cancel=None, title="确认"):
+    """
+    显示确认对话框（简化版，兼容旧代码）
+    在父组件上显示一个确认对话框
+    """
+    msg_panel = Panel(
+        (SCREEN_WIDTH - 350) // 2,
+        (SCREEN_HEIGHT - 150) // 2,
+        350, 150,
+        COLORS['panel_bg'],
+        COLORS['border'],
+        3
+    )
+
+    # 标题
+    title_label = Label(20, 15, title, font, COLORS['gold'])
+    msg_panel.add_child(title_label)
+
+    # 消息内容（分行）
+    words = message
+    lines = []
+    current_line = ""
+
+    for char in words:
+        test_line = current_line + char
+        if font.size(test_line)[0] > 310:
+            lines.append(current_line)
+            current_line = char
+        else:
+            current_line = test_line
+
+    if current_line:
+        lines.append(current_line)
+
+    lines = lines[:3]
+
+    y_offset = 50
+    for line in lines:
+        line_label = Label(20, y_offset, line, font, COLORS['text'])
+        msg_panel.add_child(line_label)
+        y_offset += 25
+
+    # 确定按钮
+    def do_confirm():
+        msg_panel.visible = False
+        msg_panel.enabled = False
+        if on_confirm:
+            on_confirm()
+
+    # 取消按钮
+    def do_cancel():
+        msg_panel.visible = False
+        msg_panel.enabled = False
+        if on_cancel:
+            on_cancel()
+
+    btn_ok = Button(
+        50, 100, 100, 35,
+        "确定", font,
+        COLORS['dark_green'], COLORS['green'], COLORS['white'],
+        callback=do_confirm
+    )
+    msg_panel.add_child(btn_ok)
+
+    btn_cancel = Button(
+        200, 100, 100, 35,
+        "取消", font,
+        COLORS['dark_red'], COLORS['red'], COLORS['white'],
+        callback=do_cancel
+    )
+    msg_panel.add_child(btn_cancel)
+
+    # 添加到父组件
+    parent.add_child(msg_panel)
+    msg_panel.visible = True
+
+    return msg_panel
+
+
+def show_toast(message, duration=2.0, level="info"):
+    """显示提示消息（需要DialogManager）"""
+    global _dialog_manager
+    if _dialog_manager:
+        _dialog_manager.show_toast(message, duration, level)

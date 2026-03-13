@@ -201,3 +201,146 @@ class Button(UIComponent):
                 center=(abs_x + self.rect.width // 2, abs_y + self.rect.height // 2)
             )
             screen.blit(text_surface, text_rect)
+
+
+class ScrollPanel(Panel):
+    """可滚动面板组件"""
+
+    def __init__(self, x, y, width, height, bg_color=None, border_color=None, border_width=2):
+        super().__init__(x, y, width, height, bg_color, border_color, border_width)
+        self.scroll_y = 0
+        self.max_scroll = 0
+        self.content_height = 0
+        self.scrollbar_width = 10
+        self.scrollbar_color = (100, 100, 100)
+        self.scrollbar_bg_color = (60, 60, 60)
+        self.dragging_scrollbar = False
+        self.drag_start_y = 0
+        self.drag_start_scroll = 0
+
+    def add_child(self, child):
+        """添加子组件并更新内容高度"""
+        super().add_child(child)
+        self._update_content_height()
+
+    def remove_child(self, child):
+        """移除子组件并更新内容高度"""
+        super().remove_child(child)
+        self._update_content_height()
+
+    def _update_content_height(self):
+        """更新内容高度"""
+        if not self.children:
+            self.content_height = 0
+            self.max_scroll = 0
+            return
+
+        max_y = 0
+        for child in self.children:
+            child_bottom = child.rect.y + child.rect.height
+            if child_bottom > max_y:
+                max_y = child_bottom
+
+        self.content_height = max_y
+        self.max_scroll = max(0, self.content_height - self.rect.height + 10)
+
+    def handle_event(self, event):
+        """处理事件"""
+        if not self.visible or not self.enabled:
+            return False
+
+        # 处理滚动条拖拽
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                abs_x, abs_y = self.get_absolute_pos()
+                scrollbar_x = abs_x + self.rect.width - self.scrollbar_width - 2
+                scrollbar_y = abs_y + 2
+                scrollbar_height = self.rect.height - 4
+
+                mouse_pos = pygame.mouse.get_pos()
+                if (scrollbar_x <= mouse_pos[0] <= scrollbar_x + self.scrollbar_width and
+                    scrollbar_y <= mouse_pos[1] <= scrollbar_y + scrollbar_height):
+                    self.dragging_scrollbar = True
+                    self.drag_start_y = mouse_pos[1]
+                    self.drag_start_scroll = self.scroll_y
+                    return True
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.dragging_scrollbar = False
+
+        elif event.type == pygame.MOUSEMOTION:
+            if self.dragging_scrollbar:
+                delta_y = event.pos[1] - self.drag_start_y
+                scroll_range = self.max_scroll if self.max_scroll > 0 else 1
+                scroll_ratio = delta_y / (self.rect.height - 20)
+                self.scroll_y = self.drag_start_scroll + int(scroll_ratio * scroll_range)
+                self.scroll_y = max(0, min(self.scroll_y, self.max_scroll))
+                return True
+
+        # 处理滚轮
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 4:  # 滚轮上
+                self.scroll_y = max(0, self.scroll_y - 30)
+                return True
+            elif event.button == 5:  # 滚轮下
+                self.scroll_y = min(self.max_scroll, self.scroll_y + 30)
+                return True
+
+        # 传递给子组件（考虑滚动偏移）
+        for child in self.children:
+            if child.handle_event(event):
+                return True
+
+        return False
+
+    def _render_self(self, screen):
+        """渲染面板"""
+        abs_x, abs_y = self.get_absolute_pos()
+
+        # 绘制背景
+        pygame.draw.rect(screen, self.bg_color, (abs_x, abs_y, self.rect.width, self.rect.height))
+
+        # 绘制边框
+        if self.border_width > 0:
+            pygame.draw.rect(screen, self.border_color,
+                           (abs_x, abs_y, self.rect.width, self.rect.height), self.border_width)
+
+        # 绘制滚动条背景
+        scrollbar_x = abs_x + self.rect.width - self.scrollbar_width - 2
+        pygame.draw.rect(screen, self.scrollbar_bg_color,
+                       (scrollbar_x, abs_y + 2, self.scrollbar_width, self.rect.height - 4))
+
+        # 绘制滚动条滑块
+        if self.max_scroll > 0:
+            thumb_height = max(30, int((self.rect.height - 20) * self.rect.height / self.content_height))
+            thumb_y = abs_y + 2 + int((self.rect.height - 4 - thumb_height) * self.scroll_y / self.max_scroll)
+            pygame.draw.rect(screen, self.scrollbar_color,
+                           (scrollbar_x, thumb_y, self.scrollbar_width, thumb_height))
+
+    def render(self, screen):
+        """渲染组件"""
+        if not self.visible:
+            return
+
+        self._render_self(screen)
+
+        # 创建裁剪区域
+        abs_x, abs_y = self.get_absolute_pos()
+        old_clip = screen.get_clip()
+        clip_rect = pygame.Rect(abs_x + 1, abs_y + 1, self.rect.width - 2 - self.scrollbar_width, self.rect.height - 2)
+        screen.set_clip(clip_rect)
+
+        # 渲染子组件（考虑滚动偏移）
+        for child in self.children:
+            if isinstance(child, Label) or isinstance(child, Button):
+                # 临时调整位置以应用滚动
+                original_y = child.rect.y
+                child.rect.y = original_y - self.scroll_y
+                child.render(screen)
+                child.rect.y = original_y
+            else:
+                child.render(screen)
+
+        # 恢复裁剪区域
+        screen.set_clip(old_clip)
