@@ -85,6 +85,16 @@ class Officer:
     def __str__(self):
         return f"{self.name}({self.courtesy_name}) 武{self.attributes.war}智{self.attributes.intelligence}政{self.attributes.politics}魅{self.attributes.charisma}"
 
+    def get_status_text(self) -> str:
+        """获取状态文本"""
+        status_map = {
+            "idle": "空闲",
+            "marching": "出征",
+            "task": "任务中",
+            "prisoner": "俘虏"
+        }
+        return status_map.get(self.status, "未知")
+
 
 class OfficerManager:
     """武将管理器"""
@@ -145,7 +155,7 @@ class OfficerManager:
             courtesy_name="玄德",
             faction_id=2,
             attributes=OfficerAttributes(war=75, intelligence=78, politics=80, charisma=99),
-            skills=[["仁德", "激将"]],
+            skills=["仁德", "激将"],
             loyalty=100,
             age=42
         ))
@@ -207,7 +217,7 @@ class OfficerManager:
             courtesy_name="公瑾",
             faction_id=3,
             attributes=OfficerAttributes(war=72, intelligence=97, politics=88, charisma=95),
-            skills=[["英姿", "反间", "火攻"]],
+            skills=["英姿", "反间", "火攻"],
             loyalty=95,
             age=33
         ))
@@ -227,7 +237,7 @@ class OfficerManager:
             courtesy_name="兴霸",
             faction_id=3,
             attributes=OfficerAttributes(war=94, intelligence=78, politics=65, charisma=80),
-            skills=[["奇袭", "锦帆"]],
+            skills=["奇袭", "锦帆"],
             loyalty=85,
             age=32
         ))
@@ -249,7 +259,7 @@ class OfficerManager:
             courtesy_name="",
             faction_id=0,
             attributes=OfficerAttributes(war=20, intelligence=85, politics=75, charisma=100),
-            skills=[["闭月", "离间"]],
+            skills=["闭月", "离间"],
             loyalty=60,
             age=22
         ))

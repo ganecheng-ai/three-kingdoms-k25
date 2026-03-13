@@ -16,6 +16,7 @@ from scenes.menu import MenuScene
 from scenes.world_map import WorldMapScene
 from scenes.city import CityScene
 from scenes.battle import BattleScene
+from scenes.officer import OfficerScene
 from core.officer import officer_manager
 from core.city import city_manager
 from core.faction import faction_manager
@@ -113,6 +114,7 @@ class Game:
         self.scenes['world_map'] = WorldMapScene(self)
         self.scenes['city'] = CityScene(self)
         self.scenes['battle'] = BattleScene(self)
+        self.scenes['officer'] = OfficerScene(self)
 
         # 设置初始场景
         self.change_scene('menu')
@@ -341,6 +343,8 @@ class Game:
         if faction:
             return [self.city_manager.get_city(cid) for cid in faction.city_ids]
         return []
+
+    def quit(self):
         """退出游戏"""
         logger.info("游戏退出中...")
 

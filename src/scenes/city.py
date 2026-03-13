@@ -21,6 +21,7 @@ class CityScene(BaseScene):
         super().__init__(game)
         self.name = 'city'
         self.current_city = None
+        self.officer_click_rects = []  # 存储武将点击区域
 
     def _init_scene(self):
         """初始化城市界面"""
@@ -399,6 +400,17 @@ class CityScene(BaseScene):
         """处理事件"""
         self.ui_root.handle_event(event)
 
+        # 处理武将列表点击
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = event.pos
+            for rect, officer_id in self.officer_click_rects:
+                if rect.collidepoint(mouse_pos):
+                    officer = officer_manager.get_officer(officer_id)
+                    if officer:
+                        logger.info(f"点击武将: {officer.name}")
+                        self.game.change_scene('officer', officer, 'city', self.current_city)
+                    break
+
     def update(self, dt):
         """更新"""
         self.ui_root.update(dt)
@@ -415,6 +427,9 @@ class CityScene(BaseScene):
         if not self.current_city:
             return
 
+        # 清空点击区域
+        self.officer_click_rects = []
+
         abs_x, abs_y = self.middle_panel.get_absolute_pos()
         start_y = abs_y + 70
 
@@ -425,6 +440,16 @@ class CityScene(BaseScene):
             y = start_y + i * 50
             if y > abs_y + self.middle_panel.rect.height - 50:
                 break
+
+            # 绘制点击区域背景（鼠标悬停效果）
+            row_rect = pygame.Rect(abs_x + 10, y - 5, self.middle_panel.rect.width - 20, 45)
+            mouse_pos = pygame.mouse.get_pos()
+            if row_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (60, 60, 80), row_rect)
+            pygame.draw.rect(screen, COLORS['gray'], row_rect, 1)
+
+            # 存储点击区域
+            self.officer_click_rects.append((row_rect, officer.id))
 
             # 武将名称
             name_surface = self.game.get_font('default').render(
@@ -440,4 +465,4 @@ class CityScene(BaseScene):
             # 忠诚度
             loyalty_text = f"忠:{officer.loyalty}"
             loyalty_surface = self.game.get_font('small').render(loyalty_text, True, COLORS['dark_red'])
-            screen.blit(loyalty_surface, (abs_x + 300, y + 5))
+            screen.blit(loyalty_surface, (abs_x + 320, y + 5))
