@@ -51,11 +51,13 @@ jobs:
           --paths "$(pwd)" \
           --hidden-import core --hidden-import core.game --hidden-import core.city \
           --hidden-import core.officer --hidden-import core.faction --hidden-import core.save_manager \
-          --hidden-import ui --hidden-import ui.base --hidden-import ui.button --hidden-import ui.panel \
-          --hidden-import ui.text --hidden-import ui.dialog \
+          --hidden-import ui --hidden-import ui.base --hidden-import ui.dialog \
           --hidden-import scenes --hidden-import scenes.base --hidden-import scenes.menu \
-          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle --hidden-import scenes.officer \
-          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger --hidden-import utils.asset_manager \
+          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle \
+          --hidden-import scenes.officer --hidden-import scenes.diplomacy \
+          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger \
+          --hidden-import utils.asset_manager --hidden-import utils.audio_manager \
+          --hidden-import utils.animation --hidden-import utils.performance \
           --hidden-import config \
           main.py
         mkdir -p ../dist
@@ -70,11 +72,13 @@ jobs:
           --paths "$(pwd)" \
           --hidden-import core --hidden-import core.game --hidden-import core.city \
           --hidden-import core.officer --hidden-import core.faction --hidden-import core.save_manager \
-          --hidden-import ui --hidden-import ui.base --hidden-import ui.button --hidden-import ui.panel \
-          --hidden-import ui.text --hidden-import ui.dialog \
+          --hidden-import ui --hidden-import ui.base --hidden-import ui.dialog \
           --hidden-import scenes --hidden-import scenes.base --hidden-import scenes.menu \
-          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle --hidden-import scenes.officer \
-          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger --hidden-import utils.asset_manager \
+          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle \
+          --hidden-import scenes.officer --hidden-import scenes.diplomacy \
+          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger \
+          --hidden-import utils.asset_manager --hidden-import utils.audio_manager \
+          --hidden-import utils.animation --hidden-import utils.performance \
           --hidden-import config \
           main.py
         mkdir -p ../dist
@@ -89,11 +93,13 @@ jobs:
           --paths "$(pwd)" \
           --hidden-import core --hidden-import core.game --hidden-import core.city \
           --hidden-import core.officer --hidden-import core.faction --hidden-import core.save_manager \
-          --hidden-import ui --hidden-import ui.base --hidden-import ui.button --hidden-import ui.panel \
-          --hidden-import ui.text --hidden-import ui.dialog \
+          --hidden-import ui --hidden-import ui.base --hidden-import ui.dialog \
           --hidden-import scenes --hidden-import scenes.base --hidden-import scenes.menu \
-          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle --hidden-import scenes.officer \
-          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger --hidden-import utils.asset_manager \
+          --hidden-import scenes.world_map --hidden-import scenes.city --hidden-import scenes.battle \
+          --hidden-import scenes.officer --hidden-import scenes.diplomacy \
+          --hidden-import utils --hidden-import utils.constants --hidden-import utils.logger \
+          --hidden-import utils.asset_manager --hidden-import utils.audio_manager \
+          --hidden-import utils.animation --hidden-import utils.performance \
           --hidden-import config \
           main.py
         mkdir -p ../dist

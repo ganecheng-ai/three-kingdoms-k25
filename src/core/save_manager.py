@@ -102,6 +102,10 @@ class SaveManager:
         """获取所有存档槽位"""
         return [self.slots.get(i) for i in range(1, self.MAX_SLOTS + 1)]
 
+    def get_save_list(self) -> List[SaveSlot]:
+        """获取存档列表（与 get_all_slots 相同，用于兼容）"""
+        return self.get_all_slots()
+
     def get_slot(self, slot_id: int) -> Optional[SaveSlot]:
         """获取指定槽位"""
         return self.slots.get(slot_id)
