@@ -12,6 +12,8 @@ from utils.constants import (
     GAME_STATE_MENU, GAME_STATE_PLAYING, GAME_STATE_PAUSED
 )
 from utils.logger import get_logger
+from utils.audio_manager import audio_manager, MusicTracks
+from utils.performance import performance_optimizer
 from scenes.menu import MenuScene
 from scenes.world_map import WorldMapScene
 from scenes.city import CityScene
@@ -130,6 +132,16 @@ class Game:
             logger.info(f"切换场景: {scene_name}")
             self.current_scene = self.scenes[scene_name]
             self.current_scene.on_enter(*args, **kwargs)
+
+            # 根据场景播放对应音乐
+            if scene_name == 'menu':
+                audio_manager.play_music(MusicTracks.MAIN_MENU)
+            elif scene_name == 'world_map':
+                audio_manager.play_music(MusicTracks.WORLD_MAP)
+            elif scene_name == 'city':
+                audio_manager.play_music(MusicTracks.CITY)
+            elif scene_name == 'battle':
+                audio_manager.play_music(MusicTracks.BATTLE)
         else:
             logger.error(f"场景不存在: {scene_name}")
 
@@ -144,6 +156,9 @@ class Game:
 
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0  # 获取帧时间（秒）
+
+            # 性能监控
+            performance_optimizer.update_frame_time(dt)
 
             # 处理事件
             self._handle_events()
@@ -349,6 +364,9 @@ class Game:
     def quit(self):
         """退出游戏"""
         logger.info("游戏退出中...")
+
+        # 停止音乐
+        audio_manager.stop_music(fade_ms=300)
 
         # 通知所有场景退出
         for scene in self.scenes.values():

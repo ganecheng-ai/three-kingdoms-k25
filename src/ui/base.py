@@ -5,6 +5,8 @@
 import pygame
 from utils.constants import COLORS
 from utils.logger import get_logger
+from utils.audio_manager import audio_manager, SoundEffects
+from utils.animation import ScaleAnimation, ShakeAnimation
 
 logger = get_logger('ui')
 
@@ -18,6 +20,10 @@ class UIComponent:
         self.enabled = True
         self.parent = None
         self.children = []
+        self._animations = []
+        self._anim_scale = 1.0
+        self._anim_offset = (0, 0)
+        self._anim_alpha = 255
 
     def add_child(self, child):
         """添加子组件"""
@@ -29,6 +35,14 @@ class UIComponent:
         if child in self.children:
             child.parent = None
             self.children.remove(child)
+
+    def add_animation(self, animation):
+        """添加动画"""
+        self._animations.append(animation)
+
+    def clear_animations(self):
+        """清除动画"""
+        self._animations.clear()
 
     def handle_event(self, event):
         """处理事件"""
@@ -46,6 +60,24 @@ class UIComponent:
         """更新组件"""
         if not self.visible:
             return
+
+        # 更新动画
+        active_animations = []
+        for anim in self._animations:
+            anim.update(dt)
+            if not anim.finished:
+                active_animations.append(anim)
+        self._animations = active_animations
+
+        # 应用动画效果
+        self._anim_scale = 1.0
+        self._anim_offset = (0, 0)
+        self._anim_alpha = 255
+        for anim in self._animations:
+            if hasattr(anim, 'get_current_scale'):
+                self._anim_scale = anim.get_current_scale()
+            elif hasattr(anim, 'get_offset'):
+                self._anim_offset = anim.get_offset()
 
         for child in self.children:
             child.update(dt)
@@ -72,6 +104,15 @@ class UIComponent:
             x += px
             y += py
         return (x, y)
+
+    def get_render_rect(self):
+        """获取渲染矩形（考虑动画）"""
+        abs_x, abs_y = self.get_absolute_pos()
+        width = int(self.rect.width * self._anim_scale)
+        height = int(self.rect.height * self._anim_scale)
+        x = abs_x + (self.rect.width - width) // 2 + self._anim_offset[0]
+        y = abs_y + (self.rect.height - height) // 2 + self._anim_offset[1]
+        return pygame.Rect(x, y, width, height)
 
 
 class Panel(UIComponent):
@@ -134,11 +175,12 @@ class Label(UIComponent):
 
 
 class Button(UIComponent):
-    """按钮组件"""
+    """按钮组件（支持动画和音效）"""
 
     def __init__(self, x, y, width, height, text, font=None,
                  bg_color=None, hover_color=None, text_color=None,
-                 border_color=None, callback=None):
+                 border_color=None, callback=None,
+                 sound_enabled=True, animation_enabled=True):
         super().__init__(x, y, width, height)
         self.text = text
         self.font = font
@@ -149,6 +191,10 @@ class Button(UIComponent):
         self.callback = callback
         self.hovered = False
         self.pressed = False
+        self.sound_enabled = sound_enabled
+        self.animation_enabled = animation_enabled
+        self._was_hovered = False
+        self._scale_anim = None
 
     def handle_event(self, event):
         """处理事件"""
@@ -161,11 +207,25 @@ class Button(UIComponent):
                      abs_y <= mouse_pos[1] <= abs_y + self.rect.height)
 
         if event.type == pygame.MOUSEMOTION:
+            was_hovered = self.hovered
             self.hovered = in_bounds
+
+            # 悬停音效和动画
+            if self.hovered and not was_hovered and self.animation_enabled:
+                # 添加缩放动画
+                self._scale_anim = ScaleAnimation(0.15, 1.0, 1.05, 'ease_out')
+                self.add_animation(self._scale_anim)
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1 and in_bounds:
                 self.pressed = True
+                # 点击音效
+                if self.sound_enabled:
+                    audio_manager.play_sound(SoundEffects.BUTTON_CLICK)
+                # 点击动画
+                if self.animation_enabled:
+                    self._scale_anim = ScaleAnimation(0.1, 1.05, 0.95, 'ease_out')
+                    self.add_animation(self._scale_anim)
                 return True
 
         elif event.type == pygame.MOUSEBUTTONUP:
@@ -173,12 +233,18 @@ class Button(UIComponent):
                 if self.pressed and in_bounds and self.callback:
                     self.callback()
                 self.pressed = False
+                # 恢复动画
+                if self.animation_enabled and self.hovered:
+                    self._scale_anim = ScaleAnimation(0.15, 0.95, 1.05, 'ease_out')
+                    self.add_animation(self._scale_anim)
 
         return False
 
     def _render_self(self, screen):
-        """渲染按钮"""
-        abs_x, abs_y = self.get_absolute_pos()
+        """渲染按钮（支持动画）"""
+        render_rect = self.get_render_rect()
+        abs_x, abs_y = render_rect.x, render_rect.y
+        width, height = render_rect.width, render_rect.height
 
         # 选择颜色
         if self.pressed:
@@ -189,16 +255,16 @@ class Button(UIComponent):
             color = self.bg_color
 
         # 绘制按钮背景
-        pygame.draw.rect(screen, color, (abs_x, abs_y, self.rect.width, self.rect.height))
+        pygame.draw.rect(screen, color, (abs_x, abs_y, width, height))
 
         # 绘制边框
-        pygame.draw.rect(screen, self.border_color, (abs_x, abs_y, self.rect.width, self.rect.height), 2)
+        pygame.draw.rect(screen, self.border_color, (abs_x, abs_y, width, height), 2)
 
         # 绘制文字
         if self.font:
             text_surface = self.font.render(self.text, True, self.text_color)
             text_rect = text_surface.get_rect(
-                center=(abs_x + self.rect.width // 2, abs_y + self.rect.height // 2)
+                center=(abs_x + width // 2, abs_y + height // 2)
             )
             screen.blit(text_surface, text_rect)
 

@@ -104,7 +104,7 @@ class MenuScene(BaseScene):
         # 版本信息
         version = Label(
             SCREEN_WIDTH - 150, SCREEN_HEIGHT - 30,
-            "版本 v0.1.0",
+            "版本 v1.0.0",
             self.game.get_font('small'),
             COLORS['gray']
         )
